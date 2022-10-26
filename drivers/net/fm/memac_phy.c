@@ -161,9 +161,11 @@ int fm_memac_mdio_init(bd_t *bis, struct memac_mdio_info *info)
 	 * like T2080QDS, this bit default is '0', which leads to MDIO failure
 	 * on XAUI PHY, so set this bit definitely.
 	 */
+	/* NOTE: Changed CLKDIV from 258 to 158 to achieve 2.52MHz clock on LS1046A as
+	 * CS4315 requires at minimum 2.5MHz */
 	memac_setbits_32(
 		&((struct memac_mdio_controller *)info->regs)->mdio_stat,
-		MDIO_STAT_CLKDIV(258) | MDIO_STAT_NEG);
+		MDIO_STAT_CLKDIV(158) | MDIO_STAT_NEG);
 
 	return mdio_register(bus);
 }

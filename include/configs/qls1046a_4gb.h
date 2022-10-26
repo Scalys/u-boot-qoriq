@@ -51,15 +51,23 @@
 #endif
 
 #ifdef CONFIG_SD_BOOT
+#ifdef CONFIG_PHY_CORTINA
+#define CONFIG_SYS_FSL_PBL_RCW board/scalys/qls1046a_4gb/qls1046a_4gb_rcw_sd_xfi.cfg
+#else /* CONFIG_PHY_CORTINA */
 #define CONFIG_SYS_FSL_PBL_RCW board/scalys/qls1046a_4gb/qls1046a_4gb_rcw_sd.cfg
+#endif /* CONFIG_PHY_CORTINA */
 #elif defined(CONFIG_NOR_BOOT)
+#ifdef CONFIG_PHY_CORTINA
+#define CONFIG_SYS_FSL_PBL_RCW board/scalys/qls1046a_4gb/qls1046a_4gb_rcw_ifc_nor_xfi.cfg
+#else /* CONFIG_PHY_CORTINA */
 #define CONFIG_SYS_FSL_PBL_RCW board/scalys/qls1046a_4gb/qls1046a_4gb_rcw_ifc_nor.cfg
-#elif defined(CONFIG_NAND_BOOT)
-#define CONFIG_SYS_FSL_PBL_RCW board/scalys/qls1046a_4gb/qls1046a_4gb_rcw_ifc_nand.cfg
+#endif /* CONFIG_PHY_CORTINA */
 #elif defined(CONFIG_QSPI_BOOT) || defined(CONFIG_SD_BOOT_QSPI)
 #error QSPI interface is not supported
 #elif defined(CONFIG_EMMC_BOOT)
 #error EMMC boot not supported
+#else
+#error Unsupported boot source
 #endif
 
 /* IFC */
@@ -108,12 +116,6 @@
 
 #define CONFIG_SYS_NAND_BLOCK_SIZE	(128 * 1024)
 
-#ifdef CONFIG_NAND_BOOT
-#define CONFIG_SPL_PAD_TO		0x40000		/* block aligned */
-#define CONFIG_SYS_NAND_U_BOOT_OFFS	CONFIG_SPL_PAD_TO
-#define CONFIG_SYS_NAND_U_BOOT_SIZE	(768 << 10)
-#endif
-
 /* NOR Flash on IFC CS1 */
 #define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
 #define CONFIG_SYS_FLASH_PROTECTION
@@ -156,7 +158,7 @@
 
 #define CONFIG_CFI_FLASH_USE_WEAK_ACCESSORS
 
-/* IFC Timing Params */
+/* IFC Timing Params (CONFIG_NAND_BOOT not supported!) */
 #if defined(CONFIG_NOR_BOOT) || defined (CONFIG_SD_BOOT)
 /* CS0 */
 #define CONFIG_SYS_CSPR0_EXT		CONFIG_SYS_NOR_CSPR_EXT
@@ -176,25 +178,6 @@
 #define CONFIG_SYS_CS1_FTIM1		CONFIG_SYS_NAND_FTIM1
 #define CONFIG_SYS_CS1_FTIM2		CONFIG_SYS_NAND_FTIM2
 #define CONFIG_SYS_CS1_FTIM3		CONFIG_SYS_NAND_FTIM3
-#else /* NAND boot */
-/* CS0 */
-#define CONFIG_SYS_CSPR0_EXT		CONFIG_SYS_NAND_CSPR_EXT
-#define CONFIG_SYS_CSPR0		CONFIG_SYS_NAND_CSPR
-#define CONFIG_SYS_AMASK0		CONFIG_SYS_NAND_AMASK
-#define CONFIG_SYS_CSOR0		CONFIG_SYS_NAND_CSOR
-#define CONFIG_SYS_CS0_FTIM0		CONFIG_SYS_NAND_FTIM0
-#define CONFIG_SYS_CS0_FTIM1		CONFIG_SYS_NAND_FTIM1
-#define CONFIG_SYS_CS0_FTIM2		CONFIG_SYS_NAND_FTIM2
-#define CONFIG_SYS_CS0_FTIM3		CONFIG_SYS_NAND_FTIM3
-/* CS1 */
-#define CONFIG_SYS_CSPR1_EXT		CONFIG_SYS_NOR_CSPR_EXT
-#define CONFIG_SYS_CSPR1		CONFIG_SYS_NOR_CSPR
-#define CONFIG_SYS_AMASK1		CONFIG_SYS_NOR_AMASK
-#define CONFIG_SYS_CSOR1		CONFIG_SYS_NOR_CSOR
-#define CONFIG_SYS_CS1_FTIM0		CONFIG_SYS_NOR_FTIM0
-#define CONFIG_SYS_CS1_FTIM1		CONFIG_SYS_NOR_FTIM1
-#define CONFIG_SYS_CS1_FTIM2		CONFIG_SYS_NOR_FTIM2
-#define CONFIG_SYS_CS1_FTIM3		CONFIG_SYS_NOR_FTIM3
 #endif /* CONFIG_NOR_BOOT */
 
 /* Environment */
@@ -207,22 +190,20 @@
 #define CONFIG_SYS_MMC_ENV_DEV		0
 #define CONFIG_ENV_OFFSET		(3 * 1024 * 1024)
 #define CONFIG_ENV_SIZE			0x2000
+/*Added for Cortina support */
+#define CONFIG_SYS_CORTINA_FW_IN_NOR
+#define CONFIG_CORTINA_FW_ADDR		0x60280000
 #elif defined(CONFIG_NOR_BOOT)
 #define CONFIG_ENV_SIZE			0x2000		/* 8KB */
 #define CONFIG_ENV_OFFSET		0x200000	/* 2MB */
 #define CONFIG_ENV_SECT_SIZE		0x40000		/* 256KB */
+/*Added for Cortina support */
+#define CONFIG_SYS_CORTINA_FW_IN_NOR
+#define CONFIG_CORTINA_FW_ADDR		0x60280000
 #ifdef CONFIG_SYS_FMAN_FW_ADDR
 #undef CONFIG_SYS_FMAN_FW_ADDR /* already defined in ls1046a_common.h */
 #endif /* CONFIG_SYS_FMAN_FW_ADDR */
 #define CONFIG_SYS_FMAN_FW_ADDR		(CONFIG_SYS_FLASH_BASE + 0x240000)
-#elif defined(CONFIG_NAND_BOOT)
-#define CONFIG_ENV_SIZE			0x2000		/* 8KB */
-#define CONFIG_ENV_OFFSET		0x200000	/* 2MB */
-#define CONFIG_ENV_SECT_SIZE		0x40000		/* 256KB */
-#ifdef CONFIG_SYS_FMAN_FW_ADDR
-#undef CONFIG_SYS_FMAN_FW_ADDR /* already defined in ls1046a_common.h */
-#endif /* CONFIG_SYS_FMAN_FW_ADDR */
-#define CONFIG_SYS_FMAN_FW_ADDR		0x240000
 #else
 #define CONFIG_ENV_SIZE			0x2000		/* 8KB */
 #define CONFIG_ENV_OFFSET		0x300000	/* 3MB */
@@ -256,6 +237,7 @@
 #define CONFIG_PHY_MARVELL
 #ifdef CONFIG_SYS_DPAA_FMAN
 #define CONFIG_FMAN_ENET
+
 #define CONFIG_MII          /* MII PHY management */
 #define CONFIG_ETHPRIME     "FM1@DTSEC3"
 /* Change RGMII_TXID to RGMII mode in drivers/net/fm/ls1046.c */
@@ -263,6 +245,14 @@
 #define CONFIG_FMAN_ENET
 #define RGMII_PHY1_ADDR			0x0
 #define RGMII_PHY2_ADDR			0x1
+
+/*Added for Cortina support*/
+#ifdef CONFIG_PHY_CORTINA
+#define CONFIG_CORTINA_FW_LENGTH	0x40000
+#endif
+#define CORTINA_PHY_ADDR1 		0xa
+#define CORTINA_PHY_ADDR2		0xb
+
 #endif  /* CONFIG_SYS_DPAA_FMAN */
 #endif  /* CONFIG_NET */
 #endif  /* !SPL_NO_FMAN */
@@ -300,18 +290,21 @@
 
 #define MTDIDS_DEFAULT CONFIG_MTDIDS_DEFAULT
 
+/*Added for Cortina support (the cortina_ucode line)*/
 #define MTDPARTS_DEFAULT    \
 	"mtdparts="\
 		"7e800000.flash:" \
 			"2M@0x0(u-boot)," \
 			"256k(env)," \
 			"256k(fman_ucode)," \
+			"256k(cortina_ucode)," \
 			"0x3fc80000(ubipart_nand)," \
 			"1M@0x3ff00000(bbt)ro;" \
 		"60000000.nor:" \
 			"2M@0x0(u-boot)," \
 			"256k(env)," \
 			"256k(fman_ucode)," \
+			"256k(cortina_ucode)," \
 			"-(ubipart_nor)"
 
 #ifndef SPL_NO_MISC
@@ -355,7 +348,7 @@
 			"setexpr cnt ${cnt} / 0x200;" \
 			"mmc write ${load_addr} 4800 ${cnt};" \
 		"fi\0"
-		
+
 #define NOR_ENV	\
 	"update-uboot-nor-nw=" \
 		"dhcp; tftp ${load_addr} ${TFTP_PATH}/u-boot-with-spl-pbl.bin.nor;" \
@@ -382,6 +375,15 @@
 			"cp.w ${load_addr} 0x60240000 ${filesize};" \
 		"fi\0" \
 	\
+	"update-cortina-ucode-nor-usb=" \
+		"usb start;" \
+		"fatload usb 0 ${load_addr} cs4315-cs4340-PHY-ucode.txt;" \
+		"if test $? = \"0\"; then " \
+			"protect off nor0,3;" \
+        	"erase nor0,3;" \
+        	"cp.w ${load_addr} 0x60280000 ${filesize};" \
+        "fi\0" \
+    \
 	"update-ubi-rootfs-nor="\
 		"dhcp;" \
 		"ubi part ubipart_nor;" \
@@ -404,20 +406,6 @@
 	"set_ubiboot_args_nor=setenv bootargs ${bootargs} ${mtdparts} ubi.mtd=ubipart_nor ubi.fm_autoconvert=1 root=ubi0:rootfs rw rootfstype=ubifs \0"
 
 #define NAND_ENV	\
-	"update-uboot-nand-nw=" \
-	    "dhcp;" \
-	    "tftp ${load_addr} ${TFTP_PATH}/u-boot-with-spl-pbl.bin.nand;" \
-	    "if test $? = \"0\"; then " \
-		"nand erase.part u-boot;" \
-		"nand write ${load_addr} 0 ${filesize}; "\
-	    "fi\0" \
-	"update-uboot-nand-usb=" \
-	    "usb start;" \
-	    "fatload usb 0 ${load_addr} u-boot-with-spl-pbl.bin.nand;" \
-	    "nand erase.part u-boot;" \
-	    "nand write ${load_addr} u-boot ${filesize};" \
-	    "\0" \
-	\
 	"update-fman-ucode-nand-usb=" \
 	    "usb start;" \
 	    "fatload usb 0 ${load_addr} fsl_fman_ucode_ls1046_r1.0_106_4_18.bin;" \
@@ -425,6 +413,13 @@
 	    "nand write ${load_addr} fman_ucode ${filesize};" \
 	    "\0" \
 	\
+	"update-cortina-ucode-nand-usb=" \
+        "usb start;" \
+        "fatload usb 0 ${loadaddr} cs4315-cs4340-PHY-ucode.txt;" \
+        "nand erase.part cortina_ucode;" \
+        "nand write ${loadaddr} cortina_ucode ${filesize};" \
+        "\0" \
+    	\
 	"update-ubi-rootfs-nand="\
 	    "dhcp;" \
 	    "ubi part ubipart_nand;" \
@@ -449,7 +444,7 @@
 #ifdef CONFIG_EXTRA_ENV_SETTINGS
 #undef CONFIG_EXTRA_ENV_SETTINGS
 #endif
-			
+
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"hwconfig=fsl_ddr:bank_intlv=auto\0"	\
 	"ramdisk_addr=0x800000\0"		\

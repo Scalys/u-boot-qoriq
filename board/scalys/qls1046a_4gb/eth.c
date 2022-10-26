@@ -16,10 +16,10 @@
 #include "dragonfruit.h"
 #include <i2c.h>
 
-static int scalys_carrier_init_rgmii_phy0(void);
-static int scalys_carrier_init_rgmii_phy1(void);
+static int scalys_carrier_init_rgmii_phy0(int enable);
+static int scalys_carrier_init_rgmii_phy1(int enable);
 static int scalys_carrier_init_sfp_phys(void);
-static int scalys_carrier_init_retimer(void);
+static int scalys_carrier_init_retimer(int enable);
 
 /* Tested module(s):
  * FCLF-8522, UF-RJ45-1G, JD089BST
@@ -39,12 +39,12 @@ uint8_t sfp_phy_config[][2] = {
 
 #define SFP_PHY_CONFIG_ITEM_NBR (sizeof(sfp_phy_config) / 2)
 
-static int scalys_carrier_init_rgmii_phy0()
+static int scalys_carrier_init_rgmii_phy0(int enable)
 {
 	int ret;
 	u32 val;
 	struct ccsr_gpio *pgpio2 = (void *)(GPIO2_BASE_ADDR);
-	
+
 	 /* Reset RGMII PHY 0 by setting ETH1_RESET_N_3V3 high */
 	val = in_be32(&pgpio2->gpdir) | ETH1_RESET_N_3V3_GPIO;
 	out_be32(&pgpio2->gpdir, val);
@@ -56,16 +56,18 @@ static int scalys_carrier_init_rgmii_phy0()
 	/* Wait for 10 ms to to meet reset timing */
 	mdelay(10);
 
-	val = in_be32(&pgpio2->gpdat) | ETH1_RESET_N_3V3_GPIO;
-	out_be32(&pgpio2->gpdat, val);
-	
-	/* Write 0x4111 to reg 0x18 on both PHYs to change LEDs usage */
-	ret = miiphy_write("FSL_MDIO0",0,0x18,0x4111);
+	if (enable) {
+		val = in_be32(&pgpio2->gpdat) | ETH1_RESET_N_3V3_GPIO;
+		out_be32(&pgpio2->gpdat, val);
+
+		/* Write 0x4111 to reg 0x18 on both PHYs to change LEDs usage */
+		ret = miiphy_write("FSL_MDIO0",0,0x18,0x4111);
+	}
 
 	return ret;
 }
 
-static int scalys_carrier_init_rgmii_phy1()
+static int scalys_carrier_init_rgmii_phy1(int enable)
 {
 	int ret = 0;
 	uint8_t i2c_data;
@@ -96,19 +98,21 @@ static int scalys_carrier_init_rgmii_phy1()
 	/* Wait for 10 ms to to meet reset timing */
 	mdelay(10);
 
-	/* Set to high */
-	ret = i2c_read(MOD_I2C_IO_ADDR, 0x06, 1, &i2c_data, 1);
-	if (ret) {
-		return ret;
-	}
-	i2c_data |= ETH2_RESET_N_3V3_GPIO;
-	ret = i2c_write(MOD_I2C_IO_ADDR, 0x06, 1, &i2c_data, 1);
-	if (ret) {
-		return ret;
-	}
+	if (enable) {
+		/* Set to high */
+		ret = i2c_read(MOD_I2C_IO_ADDR, 0x06, 1, &i2c_data, 1);
+		if (ret) {
+			return ret;
+		}
+		i2c_data |= ETH2_RESET_N_3V3_GPIO;
+		ret = i2c_write(MOD_I2C_IO_ADDR, 0x06, 1, &i2c_data, 1);
+		if (ret) {
+			return ret;
+		}
 
-	/* Write 0x4111 to reg 0x18 on both PHYs to change LEDs usage */
-	miiphy_write("FSL_MDIO0",1,0x18,0x4111);
+		/* Write 0x4111 to reg 0x18 on both PHYs to change LEDs usage */
+		miiphy_write("FSL_MDIO0",1,0x18,0x4111);
+	}
 
 	return ret;
 }
@@ -161,8 +165,7 @@ static int scalys_carrier_init_sfp_phys()
 
 	i2c_set_bus_num(3);
 
-	/* If inserted, the SFP modules have to be configured. (Finistar FCLF-85)
-	*/
+	/* If inserted, the SFP modules have to be configured. */
 	for (int phy_addr=2; phy_addr<4; phy_addr++) {
 		/* I2C multiplexer channel selection (SGMII/SFP is 2 (bottom left) & 3 (top left)) */
 		i2c_data = (1 << phy_addr);
@@ -185,11 +188,13 @@ static int scalys_carrier_init_sfp_phys()
 			}
 		}
 	}
-	/* The SFP+ modules cannot be used and therefore are not configured. */
+
+	/* If SFP+ modules must be configured then add this below here */
+
 	return 0;
 }
 
-static int scalys_carrier_init_retimer()
+static int scalys_carrier_init_retimer(int enable)
 {
 	int ret;
 	uint8_t i2c_data;
@@ -207,15 +212,33 @@ static int scalys_carrier_init_retimer()
 		return ret;
 	}
 
-	/* Set to low */
+	/* Set to low to enable PHY reset */
 	ret = i2c_read(MOD_I2C_IO_ADDR, 0x05, 1, &i2c_data, 1);
 	if (ret) {
-	return ret;
+		return ret;
 	}
 	i2c_data &= ~(EDC_RST_N_3V3_GPIO);
 	ret = i2c_write(MOD_I2C_IO_ADDR, 0x05, 1, &i2c_data, 1);
 	if (ret) {
 		return ret;
+	}
+
+	/* Wait until PHYs are ready */
+	mdelay(1);
+
+	if (enable) {
+		/* Set to high to disable PHY reset */
+		ret = i2c_read(MOD_I2C_IO_ADDR, 0x05, 1, &i2c_data, 1);
+		if (ret) {
+			return ret;
+		}
+		i2c_data |= (EDC_RST_N_3V3_GPIO);
+		ret = i2c_write(MOD_I2C_IO_ADDR, 0x05, 1, &i2c_data, 1);
+		if (ret) {
+			return ret;
+		}
+
+		mdelay(1);
 	}
 
 	return 0;
@@ -228,30 +251,24 @@ int board_eth_init(bd_t *bis)
 	struct memac_mdio_info dtsec_mdio_info;
 	struct mii_dev *dev;
 	u32 srds_s1;
-
 	struct ccsr_gur *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
 
-	srds_s1 = in_be32(&gur->rcwsr[4]) &
-			FSL_CHASSIS2_RCWSR4_SRDS1_PRTCL_MASK;
+	srds_s1 = in_be32(&gur->rcwsr[4]) &	FSL_CHASSIS2_RCWSR4_SRDS1_PRTCL_MASK;
 	srds_s1 >>= FSL_CHASSIS2_RCWSR4_SRDS1_PRTCL_SHIFT;
 
-	dtsec_mdio_info.regs =
-		(struct memac_mdio_controller *)CONFIG_SYS_FM1_DTSEC_MDIO_ADDR;
-
+	dtsec_mdio_info.regs = (struct memac_mdio_controller *)CONFIG_SYS_FM1_DTSEC_MDIO_ADDR;
 	dtsec_mdio_info.name = DEFAULT_FM_MDIO_NAME;
 
-	/* Register the 1G MDIO bus */
+	/* Register the MDIO 1 bus */
 	fm_memac_mdio_init(bis, &dtsec_mdio_info);
 
 	/* Reset PHY's and do some initial mdio configuration */
-	if(scalys_carrier_init_rgmii_phy0() != 0)
+	if(scalys_carrier_init_rgmii_phy0(true) != 0)
 		printf("Initializing RGMII PHY 0 failed\n");
-	if(scalys_carrier_init_rgmii_phy1() != 0)
+	if(scalys_carrier_init_rgmii_phy1(true) != 0)
 		printf("Initializing RGMII PHY 1 failed\n");
 	if(scalys_carrier_init_sfp_phys() != 0)
 		printf("Initializing SFP PHYs failed\n");
-	if(scalys_carrier_init_retimer() != 0)
-		printf("Disabling XFI retimer failed\n");
 
 	/* Wait until PHYs are ready */
 	mdelay(100);
@@ -260,18 +277,13 @@ int board_eth_init(bd_t *bis)
 	fm_info_set_phy_address(FM1_DTSEC3, RGMII_PHY1_ADDR);
 	fm_info_set_phy_address(FM1_DTSEC4, RGMII_PHY2_ADDR);
 
-	/* SGMII PHYs have no MDIO interface and have already been configured
+	/* The SGMII PHYs have no MDIO interface and have already been configured
 	 * above through I2C */
-	
-	/* In case SERDES1[PRTCL] = 0x3333 then disable the following
-	 * SGMII ports. These ports are not usable on default carrier board */
+	/* Disable unused DTSEC ports */
+	fm_disable_port(FM1_DTSEC1);
+	fm_disable_port(FM1_DTSEC2);
 	fm_disable_port(FM1_DTSEC9);
 	fm_disable_port(FM1_DTSEC10);
-	
-	/* In case SERDES1[PRTCL] = 0x1133 then disable XFI ports
-	 * In current hardware they aren't usable since the mdio is NC */
-	fm_disable_port(FM1_10GEC1);
-	fm_disable_port(FM1_10GEC2);
 
 	dev = miiphy_get_dev_by_name(DEFAULT_FM_MDIO_NAME);
 	for (i = FM1_DTSEC1; i < FM1_DTSEC1 + CONFIG_SYS_NUM_FM1_DTSEC; i++) {
@@ -280,6 +292,33 @@ int board_eth_init(bd_t *bis)
 			continue;
 		}
 		fm_info_set_mdio(i, dev);
+	}
+
+	/* Only support XFI interfaces if correct SERDES1 configuration is present */
+	/* Note: due to design limitation the MDIO 1 bus will be used for the CS4315 retimer PHYs as well.
+	 * This retimer expects clause 45 formatted data but the RGMII PHYs expect clause 22.
+	 * The RGMII PHYs can become confused by the clause 45 data and may incorrectly respond
+	 * under certain circumstances. For now the retimer PHYs have higher addresses to hopefully
+	 * bypass this but this may still result in undesired behaviour */
+	if (srds_s1 == 0x1133) {
+		/* First remove reset */
+		if(scalys_carrier_init_retimer(true) != 0) {
+			printf("Enabling XFI retimer failed\n");
+		}
+
+		/* Set the two XFI PHY addresses and associate them with the MDIO bus */
+		fm_info_set_phy_address(FM1_10GEC1, CORTINA_PHY_ADDR1);
+		fm_info_set_phy_address(FM1_10GEC2, CORTINA_PHY_ADDR2);
+		dev = miiphy_get_dev_by_name(DEFAULT_FM_MDIO_NAME);
+		fm_info_set_mdio(FM1_10GEC1, dev);
+		fm_info_set_mdio(FM1_10GEC2, dev);
+	} else {
+		/* Disable the retimer by keeping it in reset */
+		if(scalys_carrier_init_retimer(false) != 0) {
+			printf("Disabling XFI retimer failed\n");
+		}
+		fm_disable_port(FM1_10GEC1);
+		fm_disable_port(FM1_10GEC2);
 	}
 
 	cpu_eth_init(bis);
