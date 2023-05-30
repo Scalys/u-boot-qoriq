@@ -1199,7 +1199,7 @@ static int fsl_esdhc_init(struct fsl_esdhc_priv *priv,
 	voltage_caps = 0;
 	caps = esdhc_read32(&regs->hostcapblt);
 
-#ifdef CONFIG_MCF5441x
+#if defined(CONFIG_MCF5441x) || defined(CONFIG_FSL_ESDHC_NOT_HS_CAPABLE)
 	/*
 	 * MCF5441x RM declares in more points that sdhc clock speed must
 	 * never exceed 25 Mhz. From this, the HS bit needs to be disabled

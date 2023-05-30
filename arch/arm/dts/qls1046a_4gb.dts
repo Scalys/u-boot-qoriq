@@ -23,6 +23,11 @@
 	status = "disabled";
 };
 
+&esdhc {
+	max-frequency = <25000000>;
+	status = "okay";
+};
+
 &ifc {
 	#address-cells = <2>;
 	#size-cells = <1>;

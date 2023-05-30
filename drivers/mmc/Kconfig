@@ -641,6 +641,14 @@ config FSL_ESDHC
 	  This selects support for the eSDHC (enhanced secure digital host
 	  controller) found on numerous Freescale/NXP SoCs.
 
+config FSL_ESDHC_NOT_HS_CAPABLE
+	bool "Freescale/NXP eSDHC disable HS mode support"
+	default n
+	depends on FSL_ESDHC
+	help
+		Disables the HS capability of the ESDHC controller resulting in a
+		25MHz speed or lower.
+
 endmenu
 
 config SYS_FSL_ERRATUM_ESDHC111
